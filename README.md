@@ -68,7 +68,7 @@ No. But Wikipedia does.<br/>
 <https://en.wikipedia.org/wiki/Stream_cipher>
 
 #### Your code looks kind of messy.
-Yes,hats right!<br/>
+Yes, thats right!<br/>
 
 #### I found a bug / I know how to improve your code.
 Excellent! Please write a [mail](akandroid75@gmail.com) or use the [bugtracker]()
