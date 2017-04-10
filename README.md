@@ -71,7 +71,7 @@ No. But Wikipedia does.<br/>
 Yes, thats right!<br/>
 
 #### I found a bug / I know how to improve your code.
-Excellent! Please write a [mail](akandroid75@gmail.com) or use the [bugtracker]()
+Excellent! Please use the [bugtracker](https://github.com/kollera/DoorKeeper/issues)
 
 
 
