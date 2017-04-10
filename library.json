@@ -1,0 +1,16 @@
+{
+  "name": "DoorKeeper",
+  "keywords": "crypto, communication, esp8266",
+  "description": "Some crypto communication library for the ESP8266",
+  "version": "1.0",
+  "repository":
+  {
+    "type": "git",
+    "url": "https://github.com/kollera/DoorKeeper.git"
+  },
+  "frameworks": "arduino",
+  "platforms":
+  [
+    "espressif8266"
+  ]
+}
