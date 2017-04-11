@@ -135,6 +135,10 @@ struct RemoveKeyResponse {
 	uint8_t status_;
 };
 
+struct CustomRequest {
+	uint8_t data[];
+};
+
 union MessageData {
 	StartSessionRequest startSessionRequest;
 	StartSessionResponse startSessionResponse;
@@ -146,6 +150,7 @@ union MessageData {
 	AddKeyResponse addKeyResponse;
 	RemoveKeyRequest removeKeyRequest;
 	RemoveKeyResponse removeKeyResponse;
+	CustomRequest custom;
 };
 
 struct MessagePayload {

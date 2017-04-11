@@ -100,7 +100,12 @@ boolean defaultHandler(uint8_t messagetype, uint8_t reservedByte, MessagePayload
 	DOORKEEPERDEBUG_PRINT(" reservebyte: ");DOORKEEPERDEBUG_PRINTLN(reservedByte);
 	DOORKEEPERDEBUG_PRINT("data: ");DOORKEEPERDEBUG_HEXPRINT((uint8_t*)payload,sizeof(MessagePayload));
 	DOORKEEPERDEBUG_PRINTLN();
-	return false;
+	// set return message
+	payload->data.custom.data[0] = 0x66;
+	// set type byte
+	outbuffer->messagetype = 0xaa;
+	// return true to send response
+	return true;
 }
 
 
