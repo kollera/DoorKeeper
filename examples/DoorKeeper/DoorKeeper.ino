@@ -156,6 +156,28 @@ void setup() {
 
 	// config
 	dkconfig.serverkeys = (arducryptkeypair*)&ServerKey;
+
+	dkconfig.pins[0].portpin = D6;
+	dkconfig.pins[0].initstate = HIGH;
+	dkconfig.pins[0].OFF = HIGH;
+	dkconfig.pins[0].ON = LOW;
+
+	dkconfig.pins[1].portpin = D7;
+	dkconfig.pins[1].initstate = HIGH;
+	dkconfig.pins[1].OFF = HIGH;
+	dkconfig.pins[1].ON = LOW;
+
+	dkconfig.pins[2].portpin = D2;
+	dkconfig.pins[2].initstate = LOW;
+	dkconfig.pins[2].OFF = LOW;
+	dkconfig.pins[2].ON = HIGH;
+
+	dkconfig.pins[3].portpin = D1;
+	dkconfig.pins[3].initstate = LOW;
+	dkconfig.pins[3].OFF = LOW;
+	dkconfig.pins[3].ON = HIGH;
+
+
 	keeper.initKeeper(&dkconfig);
 
 	// add test user from config

@@ -184,18 +184,20 @@ struct DoorKeeperSession {
 	int userindex = -1;
 };
 
+struct DKPin {
+ byte portpin;
+ byte initstate;
+ byte ON;
+ byte OFF;
+};
+
+#define MAXRELAISNR 4
+
 struct DoorKeeperConfig {
 	arducryptkeypair* serverkeys;
 	boolean saveDB = false;
+	DKPin pins[MAXRELAISNR];
 };
-
-#define RCOPENPIN D1
-#define RCCLOSEPIN D2
-#define RCPININIT LOW
-
-#define RELAIS1PIN D6
-#define RELAIS2PIN D7
-#define RELAISPININIT HIGH
 
 class DoorKeeper {
 
