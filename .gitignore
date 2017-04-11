@@ -31,3 +31,5 @@
 # bakup
 *.bak
 
+#local config
+Vars.h
