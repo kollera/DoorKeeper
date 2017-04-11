@@ -71,6 +71,9 @@ const User testuser =
 				// valid to
 				0xee, 0xee, 0xee };
 
+#define SERVERPORT 23
+
+DoorKeeperConfig dkconfig;
 
 //Externals in SNTPClock.cpp
 extern SNTPClock Clock;
@@ -151,7 +154,10 @@ void setup() {
 	server.begin();
 	server.setNoDelay(true);
 
-	keeper.initKeeper((arducryptkeypair*)&ServerKey);
+	// config
+	dkconfig.serverkeys = (arducryptkeypair*)&ServerKey;
+	keeper.initKeeper(&dkconfig);
+
 	// add test user from config
 	keeper.addUser((User*)&testuser);
 	// add callback

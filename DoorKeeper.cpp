@@ -21,39 +21,11 @@
  */
 
 
+#include <ChaCha.h>
 #include <DoorKeeper.h>
-#include <pins_arduino.h>
-#include <stddef.h>
-#include <cstring>
 #include <EEPROM.h>
+#include <cstring>
 
-
-boolean isAuthenticated(StartSessionRequest request,
-		DoorKeeperSession* session);
-
-void setMessageType(DoorKeeperMessage* bufferOut, MesType type);
-boolean isValidUser(StartSessionRequest request, DoorKeeperSession* session);
-boolean isSignatureValid(StartSessionRequest request);
-boolean isAdminUser(int userindex);
-boolean isAdminSession(DoorKeeperSession* session);
-void switchRelais(RelaisRequest relaisRequest);
-
-void setHeader(DoorKeeperMessage* doorkeeperBuffer);
-
-void getFirmware(MessagePayload* body);
-void setRelais(byte nr, boolean on);
-uint8_t getRelaisState(byte nr);
-boolean handleAddKeyRequest(AddKeyRequest keyrequest);
-boolean handleRemoveKeyRequest(RemoveKeyRequest keyrequest);
-boolean handleStatusRequest(MessagePayload* statusRequest);
-
-boolean defaultCallback(uint8_t messagetype, uint8_t reserved, MessagePayload* databuffer, DoorKeeperMessage* doorkeeperBufferOut);
-
-int findUser(uint8_t* userkey);
-boolean checkValidation(int userindex);
-
-void initUserDb();
-void dumpUserDb();
 
 const int PAYLOADLENGTH = sizeof(MessagePayload);
 const int DATALENGTH = sizeof(MessageData);
@@ -63,35 +35,19 @@ const uint8_t MAJOR = 0x01;
 const uint8_t MINOR = 0x02;
 const uint8_t BUILD = 0x03;
 
-struct TimerObj {
-	uint8_t duration;
-	byte relaisNr;
-	boolean state;
-	void (*timercallback)(byte, boolean) = NULL;
-};
 
 boolean (*defaultcallback)(uint8_t,uint8_t,MessagePayload*,DoorKeeperMessage*) = NULL;
 
-TimerObj timeObj;
-
-Users userDb;
-
 timestruct* t;
-
-ulong act_ms = 0;
-
-arducryptkeypair* serverkeypair;
 
 arducrypt acrypt(sizeof(MessagePayload));
 
-boolean dbsave = false;
 
 /**
- * \brief init with server key pair (public / private)
- * needed for signing
+ * \brief init with DoorKeeperConfig
  */
-void DoorKeeper::initKeeper(arducryptkeypair* serverkeys) {
-	serverkeypair = serverkeys;
+void DoorKeeper::initKeeper(DoorKeeperConfig* conf) {
+	config = conf;
 	digitalWrite(RELAIS1PIN, RELAISPININIT);
 	pinMode(RELAIS1PIN, OUTPUT);
 	digitalWrite(RELAIS2PIN, RELAISPININIT);
@@ -104,6 +60,9 @@ void DoorKeeper::initKeeper(arducryptkeypair* serverkeys) {
 	initUserDb();
 }
 
+/**
+ * \brief time source for date validation
+ */
 void DoorKeeper::initTime(timestruct* time) {
 	t = time;
 	DOORKEEPERDEBUG_PRINT(F("date: "));
@@ -111,9 +70,6 @@ void DoorKeeper::initTime(timestruct* time) {
 	DOORKEEPERDEBUG_PRINT(F("."));
 	DOORKEEPERDEBUG_PRINT((t->tm_mon + 1));
 	DOORKEEPERDEBUG_PRINT(F("."));DOORKEEPERDEBUG_PRINTLN(t->tm_year);
-}
-void setDBSave(boolean save) {
-	dbsave = save;
 }
 
 void DoorKeeper::CB1000ms(ulong time) {
@@ -126,7 +82,7 @@ void DoorKeeper::CB1000ms(ulong time) {
 
 void DoorKeeper::checkTimer() {
 	if (timeObj.timercallback != NULL && timeObj.duration == 0x00) {
-		(*timeObj.timercallback)(timeObj.relaisNr, timeObj.state);
+		(this->*timeObj.timercallback)(timeObj.relaisNr, timeObj.state);
 		timeObj.timercallback = NULL;
 	}
 }
@@ -135,28 +91,28 @@ void DoorKeeper::checkTimer() {
 /**
  * \brief add a default handler (will be called when a 'non standard' message was received.
  * callback is responsible for setting correct 'type' in output buffer.
- * if response should be send, the fuction has to return 'true' - 'false' otherwise.
+ * if response should be send, the function has to return 'true' - 'false' otherwise.
  */
 void DoorKeeper::addDefaultHandler(boolean (*defaulthandler)(uint8_t,uint8_t,MessagePayload*,DoorKeeperMessage*)) {
 	defaultcallback = defaulthandler;
 }
 
-boolean isStarted(DoorKeeperSession* session) {
+boolean DoorKeeper::isStarted(DoorKeeperSession* session) {
 	return (session->userindex != INVALIDINDEX);
 }
 
-void endSession(DoorKeeperSession* session) {
+void DoorKeeper::endSession(DoorKeeperSession* session) {
 	session->userindex = INVALIDINDEX;
 	session->cryptSession.decrypt.clear();
 	session->cryptSession.encrypt.clear();
 }
 
-void addChecksum(uint8_t* message, uint32_t* chksum) {
+void DoorKeeper::addChecksum(uint8_t* message, uint32_t* chksum) {
 	*chksum = acrypt.calcChecksum((uint8_t *) message,
 			DATALENGTH);
 }
 
-boolean verifyChecksum(uint8_t* message, uint32_t chksum) {
+boolean DoorKeeper::verifyChecksum(uint8_t* message, uint32_t chksum) {
 	DOORKEEPERDEBUG_PRINT(F("checksum: "));
 	DOORKEEPERDEBUG_HEXPRINT((uint8_t* )message, CHECKSUMSIZE);
 	DOORKEEPERDEBUG_PRINTLN();
@@ -172,7 +128,7 @@ boolean verifyChecksum(uint8_t* message, uint32_t chksum) {
 	return false;
 }
 
-boolean decrypt_data(MessagePayload* doorkeeperplain,
+boolean DoorKeeper::decrypt_data(MessagePayload* doorkeeperplain,
 		MessagePayload* doorkeepercrypted, DoorKeeperSession* session) {
 	DOORKEEPERDEBUG_PRINT(F("crypted: "));
 	DOORKEEPERDEBUG_HEXPRINT((uint8_t* )doorkeepercrypted, PAYLOADLENGTH);
@@ -186,7 +142,7 @@ boolean decrypt_data(MessagePayload* doorkeeperplain,
 	}
 }
 
-boolean encrypt_data(MessagePayload* doorkeeperplain,
+boolean DoorKeeper::encrypt_data(MessagePayload* doorkeeperplain,
 		MessagePayload* doorkeepercrypted, DoorKeeperSession* session) {
 	DOORKEEPERDEBUG_PRINT(F("plain: "));
 	DOORKEEPERDEBUG_HEXPRINT((uint8_t* )doorkeeperplain, PAYLOADLENGTH);
@@ -201,7 +157,7 @@ boolean encrypt_data(MessagePayload* doorkeeperplain,
 	}
 }
 
-boolean isMessageEncrypted(DoorKeeperMessage* doorkeeperBufferIn) {
+boolean DoorKeeper::isMessageEncrypted(DoorKeeperMessage* doorkeeperBufferIn) {
 
 	if (doorkeeperBufferIn->messagetype!=MesType::STARTSESSIONREQUEST) {
 		return true;
@@ -209,10 +165,18 @@ boolean isMessageEncrypted(DoorKeeperMessage* doorkeeperBufferIn) {
 	return false;
 }
 
-void clearBuffer(MessagePayload* body, int size) {
+void DoorKeeper::clearBuffer(MessagePayload* body, int size) {
 	memset(body, 0, size);
 }
 
+/**
+ * \brief
+ * message which has to be processed: doorkeeperBufferIn
+ * session for encryption/decryption: session
+ * response: doorkeeperBufferOut
+ * returns TRUE if a response was generated (available in doorkeeperBufferOut),
+ * FALSE otherwise
+ */
 boolean DoorKeeper::handleMessage(DoorKeeperMessage* doorkeeperBufferIn,
 		DoorKeeperMessage* doorkeeperBufferOut, DoorKeeperSession* session) {
 	DOORKEEPERDEBUG_PRINT(F("handleMessage:"));
@@ -274,7 +238,7 @@ boolean DoorKeeper::handleMessage(DoorKeeperMessage* doorkeeperBufferIn,
 				memcpy(
 						doorkeeperBufferOut->message.data.startSessionResponse.sessionIV,
 						session->cryptSession.iv, IVSIZE);
-				acrypt.sign((arducryptkeypair*)serverkeypair,(uint8_t*)&doorkeeperBufferOut->message.data.startSessionResponse.sessionServerPubKey, (arducryptsignature*)&doorkeeperBufferOut->message.data.startSessionResponse.signature, KEYSIZE+IVSIZE);
+				acrypt.sign(config->serverkeys,(uint8_t*)&doorkeeperBufferOut->message.data.startSessionResponse.sessionServerPubKey, (arducryptsignature*)&doorkeeperBufferOut->message.data.startSessionResponse.signature, KEYSIZE+IVSIZE);
 
 // checksum
 				addChecksum((uint8_t*)&doorkeeperBufferOut->message, &doorkeeperBufferOut->message.checksum);
@@ -355,7 +319,7 @@ boolean DoorKeeper::handleMessage(DoorKeeperMessage* doorkeeperBufferIn,
 	return false;
 }
 
-boolean defaultCallback(uint8_t messagetype, uint8_t reservedbyte, MessagePayload* databuffer, DoorKeeperMessage* doorkeeperBufferOut){
+boolean DoorKeeper::defaultCallback(uint8_t messagetype, uint8_t reservedbyte, MessagePayload* databuffer, DoorKeeperMessage* doorkeeperBufferOut){
 	if(defaultcallback==NULL) {
 		return false;
 	}
@@ -363,7 +327,7 @@ boolean defaultCallback(uint8_t messagetype, uint8_t reservedbyte, MessagePayloa
 	return (*defaultcallback)(messagetype,reservedbyte,databuffer,doorkeeperBufferOut);
 }
 
-int getFreeUser() {
+int DoorKeeper::getFreeUser() {
 	for (int index = 0; index < MAXUSERS; index++) {
 		if (userDb.users[index].validToDay == 0xff
 				&& userDb.users[index].validToDay == 0xff
@@ -376,7 +340,7 @@ int getFreeUser() {
 	return INVALIDINDEX;
 }
 
-boolean handleRemoveKeyRequest(RemoveKeyRequest keyrequest) {
+boolean DoorKeeper::handleRemoveKeyRequest(RemoveKeyRequest keyrequest) {
 	DOORKEEPERDEBUG_PRINTLN(F("handle remove key"));
 	int userindex = findUser(keyrequest.clientPubKey);
 	if (userindex == INVALIDINDEX) {
@@ -393,7 +357,7 @@ boolean handleRemoveKeyRequest(RemoveKeyRequest keyrequest) {
 	return true;
 }
 
-boolean handleStatusRequest(MessagePayload* statusRequest) {
+boolean DoorKeeper::handleStatusRequest(MessagePayload* statusRequest) {
 	DOORKEEPERDEBUG_PRINTLN(F("handleStatusRequest"));
 	uint8_t relais = statusRequest->data.statusRequest.relaisnr;
 	//check status
@@ -401,7 +365,7 @@ boolean handleStatusRequest(MessagePayload* statusRequest) {
 	return true;
 }
 
-boolean handleAddKeyRequest(AddKeyRequest keyrequest) {
+boolean DoorKeeper::handleAddKeyRequest(AddKeyRequest keyrequest) {
 	DOORKEEPERDEBUG_PRINTLN(F("handle add key"));
 
 	int userindex = findUser(keyrequest.clientPubKey);
@@ -439,13 +403,13 @@ boolean handleAddKeyRequest(AddKeyRequest keyrequest) {
 	return false;
 }
 
-void getFirmware(MessagePayload* body) {
+void DoorKeeper::getFirmware(MessagePayload* body) {
 	body->data.firmwareResponse.major = MAJOR;
 	body->data.firmwareResponse.minor = MINOR;
 	body->data.firmwareResponse.build = BUILD;
 }
 
-void switchRelais(RelaisRequest relaisRequest) {
+void DoorKeeper::switchRelais(RelaisRequest relaisRequest) {
 	DOORKEEPERDEBUG_PRINT(F("switchRelais: nr="));
 	DOORKEEPERDEBUG_HEXPRINTBYTE(relaisRequest.relaisnumber);
 	DOORKEEPERDEBUG_PRINT(F(" , state="));
@@ -471,13 +435,13 @@ void switchRelais(RelaisRequest relaisRequest) {
 			timeObj.duration = relaisRequest.duration_s;
 			timeObj.relaisNr = relaisRequest.relaisnumber;
 			timeObj.state = !on;
-			timeObj.timercallback = &setRelais;
+			timeObj.timercallback = &DoorKeeper::setRelais;
 		}
 	}
 
 }
 
-uint8_t getRelaisState(byte nr) {
+uint8_t DoorKeeper::getRelaisState(byte nr) {
 	DOORKEEPERDEBUG_PRINT(F("getRelais "));
 	DOORKEEPERDEBUG_PRINT(nr);
 	byte relstatus = 0x00;
@@ -528,7 +492,7 @@ uint8_t getRelaisState(byte nr) {
 	return relstatus;
 }
 
-void setRelais(byte nr, boolean on) {
+void DoorKeeper::setRelais(byte nr, boolean on) {
 	DOORKEEPERDEBUG_PRINT(F("setRelais "));
 	DOORKEEPERDEBUG_PRINT(nr);
 	if(on) {
@@ -563,11 +527,11 @@ void setRelais(byte nr, boolean on) {
 	}
 }
 
-void setMessageType(DoorKeeperMessage* bufferOut, MesType type) {
+void DoorKeeper::setMessageType(DoorKeeperMessage* bufferOut, MesType type) {
 	bufferOut->messagetype = type;
 }
 
-boolean isAuthenticated(StartSessionRequest request,
+boolean DoorKeeper::isAuthenticated(StartSessionRequest request,
 		DoorKeeperSession* session) {
 	if (isValidUser(request, session) == true) {
 		DOORKEEPERDEBUG_PRINTLN(F("user valid!"));
@@ -583,7 +547,7 @@ boolean isAuthenticated(StartSessionRequest request,
 	return false;
 }
 
-int findUser(uint8_t* userkey) {
+int DoorKeeper::findUser(uint8_t* userkey) {
 	for (int index = 0; index < MAXUSERS; index++) {
 		if (memcmp(userDb.users[index].userPubKey, userkey,
 		KEYSIZE) == 0) {
@@ -593,7 +557,7 @@ int findUser(uint8_t* userkey) {
 	return INVALIDINDEX;
 }
 
-boolean fromDateValid(int userindex, uint8_t actYear, uint8_t actMonth,
+boolean DoorKeeper::fromDateValid(int userindex, uint8_t actYear, uint8_t actMonth,
 		uint8_t actDay) {
 	DOORKEEPERDEBUG_PRINT(F("valid from y/m/d "));
 	DOORKEEPERDEBUG_PRINT(userDb.users[userindex].validFromYear);
@@ -617,7 +581,7 @@ boolean fromDateValid(int userindex, uint8_t actYear, uint8_t actMonth,
 	return false;
 }
 
-boolean toDateValid(int userindex, uint8_t actYear, uint8_t actMonth,
+boolean DoorKeeper::toDateValid(int userindex, uint8_t actYear, uint8_t actMonth,
 		uint8_t actDay) {
 	DOORKEEPERDEBUG_PRINT(F("valid till y/m/d "));
 	DOORKEEPERDEBUG_PRINT(userDb.users[userindex].validToYear);
@@ -636,7 +600,7 @@ boolean toDateValid(int userindex, uint8_t actYear, uint8_t actMonth,
 	return false;
 }
 
-boolean checkValidation(int userindex) {
+boolean DoorKeeper::checkValidation(int userindex) {
 	// is this true ??
 	uint8_t year = t->tm_year - 2000;
 	// is 0 .. 11
@@ -656,7 +620,7 @@ boolean checkValidation(int userindex) {
 	return false;
 }
 
-boolean isValidUser(StartSessionRequest request, DoorKeeperSession* session) {
+boolean DoorKeeper::isValidUser(StartSessionRequest request, DoorKeeperSession* session) {
 	int userindex = findUser(request.clientPubKey);
 	if (userindex == INVALIDINDEX) {
 		return false;
@@ -671,11 +635,11 @@ boolean isValidUser(StartSessionRequest request, DoorKeeperSession* session) {
 	return false;
 }
 
-boolean isAdminSession(DoorKeeperSession* session) {
+boolean DoorKeeper::isAdminSession(DoorKeeperSession* session) {
 	return isAdminUser(session->userindex);
 }
 
-boolean isAdminUser(int index) {
+boolean DoorKeeper::isAdminUser(int index) {
 	if ((userDb.users[index].validToYear == 0xee)
 			&& (userDb.users[index].validToMonth == 0xee)
 			&& (userDb.users[index].validToDay == 0xee)) {
@@ -686,7 +650,7 @@ boolean isAdminUser(int index) {
 	return false;
 }
 
-boolean isSignatureValid(StartSessionRequest request) {
+boolean DoorKeeper::isSignatureValid(StartSessionRequest request) {
 	bool verified = acrypt.validateSignature((arducryptsignature*) &request.signature,
 			(uint8_t*)&request.sessionClientPubKey, KEYSIZE,
 			(arducryptkey*) &request.clientPubKey);
@@ -695,12 +659,12 @@ boolean isSignatureValid(StartSessionRequest request) {
 }
 
 
-void setHeader(DoorKeeperMessage* doorkeeperBuffer) {
+void DoorKeeper::setHeader(DoorKeeperMessage* doorkeeperBuffer) {
 	doorkeeperBuffer->headerbyte1 = 0x23;
 	doorkeeperBuffer->headerbyte2 = 0x42;
 }
 
-void loadUser(User* user, int userIndex) {
+void DoorKeeper::loadUser(User* user, int userIndex) {
 	if (userIndex < 0 || userIndex >= MAXUSERS) {
 		return;
 	}
@@ -715,13 +679,13 @@ void loadUser(User* user, int userIndex) {
 	DOORKEEPERDEBUG_HEXPRINT((uint8_t* )user, sizeof(User));
 }
 
-void storeUser(User* user, int userIndex) {
+void DoorKeeper::storeUser(User* user, int userIndex) {
 	if (userIndex < 0 || userIndex >= MAXUSERS) {
 		DOORKEEPERDEBUG_PRINT(F("invalid index: "));
 		DOORKEEPERDEBUG_PRINTLN(userIndex);
 		return;
 	}
-	EEPROM.begin(DBSIZE);
+	EEPROM.begin(sizeof(Users));
 	int address = sizeof(User);
 	address *= userIndex;
 	uint8_t* userPtr = (uint8_t*) user;
@@ -734,31 +698,31 @@ void storeUser(User* user, int userIndex) {
 	DOORKEEPERDEBUG_HEXPRINT((uint8_t* )user, sizeof(User));
 }
 
-void storeUserIndex(int index) {
+void DoorKeeper::storeUserIndex(int index) {
 	storeUser(&userDb.users[index], index);
 }
 
-void loadUserDb() {
+void DoorKeeper::loadUserDb() {
 	for (int i = 0; i < MAXUSERS; i++) {
 		loadUser(&userDb.users[i], i);
 	}
 	userDb.modified = INVALIDINDEX;
 }
 
-void initUserDb() {
-	EEPROM.begin(DBSIZE);
+void DoorKeeper::initUserDb() {
+	EEPROM.begin(sizeof(Users));
 	loadUserDb();
 	EEPROM.end();
 }
 
-void dumpUserDb() {
+void DoorKeeper::dumpUserDb() {
 	DOORKEEPERDEBUG_PRINT(F("userdb: "));
 	int x = sizeof(User) * MAXUSERS;
 	DOORKEEPERDEBUG_HEXPRINT((uint8_t * )&userDb, x);
 
 }
 
-void eraseDB() {
+void DoorKeeper::eraseDB() {
 	DOORKEEPERDEBUG_PRINTLN(F("eraseDB!!!!!!!"));
 	for (int i = 0; i < MAXUSERS; i++) {
 		memset(&userDb.users[i], 0xff, sizeof(User));
@@ -770,7 +734,7 @@ void DoorKeeper::doorkeeperLoop() {
 
 	int modifiedIndex = userDb.modified;
 	if (modifiedIndex != INVALIDINDEX) {
-		if(dbsave==false) {
+		if(config->saveDB == false) {
 			DOORKEEPERDEBUG_PRINTLN(F("dbsave is set to false! do not store to eeprom!"));
 		} else {
 		DOORKEEPERDEBUG_PRINT(F("db was modified ... updating entry "));

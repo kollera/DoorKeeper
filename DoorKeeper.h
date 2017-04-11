@@ -20,16 +20,13 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-
 #ifndef doorkeeper_h
 #define doorkeeper_h
 
-
+#include <arducrypt.h>
 #include <Arduino.h>
 #include <stdint.h>
 #include <sys/types.h>
-#include <arducrypt.h>
-
 
 #define DOORKEEPERDEBUG 1
 
@@ -187,9 +184,10 @@ struct DoorKeeperSession {
 	int userindex = -1;
 };
 
-#define DBSIZE 1024
-#define SERVERPORT 23
-
+struct DoorKeeperConfig {
+	arducryptkeypair* serverkeys;
+	boolean saveDB = false;
+};
 
 #define RCOPENPIN D1
 #define RCCLOSEPIN D2
@@ -202,24 +200,80 @@ struct DoorKeeperSession {
 class DoorKeeper {
 
 public:
-void initKeeper(arducryptkeypair* serverkeys);
-void setDBSave(boolean save);
-void initTime(timestruct* time);
+	void initKeeper(DoorKeeperConfig* config);
+	void initTime(timestruct* time);
 
-boolean handleMessage(DoorKeeperMessage* doorkeeperBufferIn,
-		DoorKeeperMessage* doorkeeperBufferOut, DoorKeeperSession* session);
+	boolean handleMessage(DoorKeeperMessage* doorkeeperBufferIn,
+			DoorKeeperMessage* doorkeeperBufferOut, DoorKeeperSession* session);
 
-void addDefaultHandler(boolean (*defaultcallback)(uint8_t,uint8_t,MessagePayload*,DoorKeeperMessage*));
+	void addDefaultHandler(
+			boolean (*defaultcallback)(uint8_t, uint8_t, MessagePayload*,
+					DoorKeeperMessage*));
 
-void addUser(User* u);
-User* getUser(int index);
+	void addUser(User* u);
+	User* getUser(int index);
 
 // called from a cyclic timer
-void CB1000ms(ulong time);
+	void CB1000ms(ulong time);
 // called from loop
-void checkTimer();
+	void checkTimer();
 // called from loop
-void doorkeeperLoop();
+	void doorkeeperLoop();
+
+private:
+
+	boolean isStarted(DoorKeeperSession* session);
+	void endSession(DoorKeeperSession* session);
+	void addChecksum(uint8_t* message, uint32_t* chksum);
+	boolean verifyChecksum(uint8_t* message, uint32_t chksum);
+	boolean decrypt_data(MessagePayload* doorkeeperplain,
+			MessagePayload* doorkeepercrypted, DoorKeeperSession* session);
+	boolean encrypt_data(MessagePayload* doorkeeperplain,
+			MessagePayload* doorkeepercrypted, DoorKeeperSession* session);
+	boolean isMessageEncrypted(DoorKeeperMessage* doorkeeperBufferIn);
+	void clearBuffer(MessagePayload* body, int size);
+	boolean defaultCallback(uint8_t messagetype, uint8_t reservedbyte,
+			MessagePayload* databuffer, DoorKeeperMessage* doorkeeperBufferOut);
+	int getFreeUser();
+	boolean handleRemoveKeyRequest(RemoveKeyRequest keyrequest);
+	boolean handleStatusRequest(MessagePayload* statusRequest);
+	boolean handleAddKeyRequest(AddKeyRequest keyrequest);
+	void getFirmware(MessagePayload* body);
+	void switchRelais(RelaisRequest relaisRequest);
+	uint8_t getRelaisState(byte nr);
+	void setRelais(byte nr, boolean on);
+	void setMessageType(DoorKeeperMessage* bufferOut, MesType type);
+	boolean isAuthenticated(StartSessionRequest request,
+			DoorKeeperSession* session);
+	int findUser(uint8_t* userkey);
+	boolean fromDateValid(int userindex, uint8_t actYear, uint8_t actMonth,
+			uint8_t actDay);
+	boolean toDateValid(int userindex, uint8_t actYear, uint8_t actMonth,
+			uint8_t actDay);
+	boolean checkValidation(int userindex);
+	boolean isValidUser(StartSessionRequest request, DoorKeeperSession* session);
+	boolean isAdminSession(DoorKeeperSession* session);
+	boolean isAdminUser(int index);
+	boolean isSignatureValid(StartSessionRequest request);
+	void setHeader(DoorKeeperMessage* doorkeeperBuffer);
+	void loadUser(User* user, int userIndex);
+	void storeUser(User* user, int userIndex);
+	void storeUserIndex(int index);
+	void loadUserDb();
+	void initUserDb();
+	void dumpUserDb();
+	void eraseDB();
+	struct TimerObj {
+		uint8_t duration;
+		byte relaisNr;
+		boolean state;
+		void (DoorKeeper::*timercallback)(byte, boolean) = NULL;
+	};
+	TimerObj timeObj;
+
+	DoorKeeperConfig* config;
+	Users userDb;
+	ulong act_ms = 0;
 
 };
 #endif
