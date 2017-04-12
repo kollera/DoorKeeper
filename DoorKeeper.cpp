@@ -25,18 +25,18 @@
 #include <EEPROM.h>
 #include <cstring>
 
-const int PAYLOADLENGTH = sizeof(MessagePayload);
-const int DATALENGTH = sizeof(MessageData);
-const int HEADERLEN = sizeof(DoorKeeperMessage) - PAYLOADLENGTH;
+	boolean (*defaultcallback)(uint8_t, uint8_t, MessagePayload*,
+			DoorKeeperMessage*) = NULL;
 
-const uint8_t MAJOR = 0x01;
-const uint8_t MINOR = 0x02;
-const uint8_t BUILD = 0x03;
+	timestruct* t;
+	const int PAYLOADLENGTH = sizeof(MessagePayload);
+	const int DATALENGTH = sizeof(MessageData);
+	const int HEADERLEN = sizeof(DoorKeeperMessage) - PAYLOADLENGTH;
 
-boolean (*defaultcallback)(uint8_t, uint8_t, MessagePayload*,
-		DoorKeeperMessage*) = NULL;
+	const uint8_t MAJOR = 0x01;
+	const uint8_t MINOR = 0x02;
+	const uint8_t BUILD = 0x03;
 
-timestruct* t;
 
 arducrypt acrypt(sizeof(MessagePayload));
 
@@ -47,8 +47,12 @@ void DoorKeeper::initKeeper(DoorKeeperConfig* conf) {
 	config = conf;
 
 	for (int i = 0; i < MAXRELAISNR; i++) {
-		digitalWrite(config->pins[i].portpin, config->pins[i].initstate);
-		pinMode(config->pins[i].portpin, OUTPUT);
+		if (config->pins[i].portpin != 0xff) {
+			DOORKEEPERDEBUG_PRINT(F("init portpin: "));
+			DOORKEEPERDEBUG_PRINTLN(config->pins[i].portpin);
+			digitalWrite(config->pins[i].portpin, config->pins[i].initstate);
+			pinMode(config->pins[i].portpin, OUTPUT);
+		}
 	}
 
 	initUserDb();
@@ -87,9 +91,9 @@ void DoorKeeper::checkTimer() {
  * if response should be send, the function has to return 'true' - 'false' otherwise.
  */
 void DoorKeeper::addDefaultHandler(
-		boolean (*defaulthandler)(uint8_t, uint8_t, MessagePayload*,
+		boolean (*usercallback)(uint8_t, uint8_t, MessagePayload*,
 				DoorKeeperMessage*)) {
-	defaultcallback = defaulthandler;
+	defaultcallback = usercallback;
 }
 
 boolean DoorKeeper::isStarted(DoorKeeperSession* session) {

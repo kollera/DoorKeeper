@@ -71,7 +71,7 @@ const User testuser =
 				// valid to
 				0xee, 0xee, 0xee };
 
-#define SERVERPORT 23
+//#define SERVERPORT 23
 
 DoorKeeperConfig dkconfig;
 
@@ -79,7 +79,7 @@ DoorKeeperConfig dkconfig;
 extern SNTPClock Clock;
 
 const int MAX_SRV_CLIENTS = 3;
-WiFiServer server(SERVERPORT);
+WiFiServer server(23);
 WiFiClient serverClients[MAX_SRV_CLIENTS];
 DoorKeeperSession sessions[MAX_SRV_CLIENTS];
 
@@ -94,7 +94,7 @@ void ClockCbFunction() {
 	//Clock.detachCb();
 }
 
-boolean defaultHandler(uint8_t messagetype, uint8_t reservedByte, MessagePayload* payload, DoorKeeperMessage* outbuffer) {
+boolean static defaultHandler(uint8_t messagetype, uint8_t reservedByte, MessagePayload* payload, DoorKeeperMessage* outbuffer) {
 	DOORKEEPERDEBUG_PRINTLN(F("default handler was called!"));
 	DOORKEEPERDEBUG_PRINT("messagetype: ");DOORKEEPERDEBUG_PRINT(messagetype);
 	DOORKEEPERDEBUG_PRINT(" reservebyte: ");DOORKEEPERDEBUG_PRINTLN(reservedByte);

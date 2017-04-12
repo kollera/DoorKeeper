@@ -190,13 +190,14 @@ struct DoorKeeperSession {
 };
 
 struct DKPin {
- byte portpin;
+ byte portpin = 0xff;
  byte initstate;
  byte ON;
  byte OFF;
 };
 
 #define MAXRELAISNR 4
+
 
 struct DoorKeeperConfig {
 	arducryptkeypair* serverkeys;
@@ -214,7 +215,7 @@ public:
 			DoorKeeperMessage* doorkeeperBufferOut, DoorKeeperSession* session);
 
 	void addDefaultHandler(
-			boolean (*defaultcallback)(uint8_t, uint8_t, MessagePayload*,
+			boolean (*usercallback)(uint8_t, uint8_t, MessagePayload*,
 					DoorKeeperMessage*));
 
 	void addUser(User* u);
