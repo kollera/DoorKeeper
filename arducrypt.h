@@ -99,6 +99,8 @@ public:
 
 	uint32_t calcChecksum(uint8_t* message, int len);
 
+	void static generateSigKeyPair(uint8_t* privateKey, uint8_t* publicKey);
+
 private:
 	int messagesize;
 };

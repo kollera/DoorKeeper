@@ -69,6 +69,16 @@ void generateInitVector(uint8_t* sessionIv) {
 }
 
 /**
+ * \brief
+ * generates a Ed25519 key pair
+ * privateKey[32] & publicKey[32]
+ */
+void arducrypt::generateSigKeyPair(uint8_t* privateKey, uint8_t* publicKey) {
+	Ed25519::generatePrivateKey(privateKey);
+	Ed25519::derivePublicKey(publicKey, privateKey);
+}
+
+/**
  * \brief initializes arducryptsession
  */
 boolean arducrypt::generateSession(arducryptsession* session, arducryptkey* partnerkey) {

@@ -108,6 +108,18 @@ boolean static defaultHandler(uint8_t messagetype, uint8_t reservedByte, Message
 	return true;
 }
 
+void generateNewSignKeyPair() {
+	uint8_t newPrivateKey[KEYSIZE];
+	uint8_t newPublicKey[KEYSIZE];
+	arducrypt::generateSigKeyPair(newPrivateKey, newPublicKey);
+	DOORKEEPERDEBUG_PRINT("new sign key pair: ");
+	DOORKEEPERDEBUG_PRINT("public key: ");
+	DOORKEEPERDEBUG_HEXPRINT(newPublicKey,KEYSIZE);
+	DOORKEEPERDEBUG_PRINT(", private key: ");
+	DOORKEEPERDEBUG_HEXPRINT(newPrivateKey,KEYSIZE);
+	DOORKEEPERDEBUG_PRINTLN();
+}
+
 
 void setup() {
 
@@ -197,7 +209,9 @@ void setup() {
 	DOORKEEPERDEBUG_PRINTLN(DoorKeeperMessageSize);
 	DOORKEEPERDEBUG_PRINT("sizeof(MessageData): ");
 	DOORKEEPERDEBUG_PRINTLN(sizeof(MessageData));
+//	generateNewSignKeyPair();
 }
+
 extern const uint32_t DoorKeeperMessageSize;
 
 void copyToArray(String* s, char* ar) {
