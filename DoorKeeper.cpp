@@ -481,8 +481,9 @@ void DoorKeeper::setRelais(byte nr, boolean on) {
 			on == true ? config->pins[nr].ON : config->pins[nr].ON);
 }
 
-void DoorKeeper::setMessageType(DoorKeeperMessage* bufferOut, MesType type) {
-	bufferOut->messagetype = type;
+void DoorKeeper::setMessageType(DoorKeeperMessage* buffer, MesType type) {
+	setHeader(buffer);
+	buffer->messagetype = type;
 }
 
 boolean DoorKeeper::isAuthenticated(StartSessionRequest request,
