@@ -25,17 +25,7 @@
 #include <EEPROM.h>
 #include <cstring>
 
-	boolean (*defaultcallback)(uint8_t, uint8_t, MessagePayload*,
-			DoorKeeperMessage*) = NULL;
 
-	timestruct* t;
-	const int PAYLOADLENGTH = sizeof(MessagePayload);
-	const int DATALENGTH = sizeof(MessageData);
-	const int HEADERLEN = sizeof(DoorKeeperMessage) - PAYLOADLENGTH;
-
-	const uint8_t MAJOR = 0x01;
-	const uint8_t MINOR = 0x02;
-	const uint8_t BUILD = 0x03;
 
 
 arducrypt acrypt(sizeof(MessagePayload));
@@ -331,9 +321,11 @@ boolean DoorKeeper::handleMessage(DoorKeeperMessage* doorkeeperBufferIn,
 boolean DoorKeeper::defaultCallback(uint8_t messagetype, uint8_t reservedbyte,
 		MessagePayload* databuffer, DoorKeeperMessage* doorkeeperBufferOut) {
 	if (defaultcallback == NULL) {
+		DOORKEEPERDEBUG_PRINTLN(F("defaultCallback is NULL"));
 		return false;
 	}
 	// callback
+	DOORKEEPERDEBUG_PRINTLN(F("calling defaultCallback"));
 	return (*defaultcallback)(messagetype, reservedbyte, databuffer,
 			doorkeeperBufferOut);
 }

@@ -283,5 +283,16 @@ private:
 	Users userDb;
 	ulong act_ms = 0;
 
+	boolean (*defaultcallback)(uint8_t, uint8_t, MessagePayload*,
+			DoorKeeperMessage*) = NULL;
+
+	timestruct* t;
+	const int PAYLOADLENGTH = sizeof(MessagePayload);
+	const int DATALENGTH = sizeof(MessageData);
+	const int HEADERLEN = sizeof(DoorKeeperMessage) - PAYLOADLENGTH;
+
+	const uint8_t MAJOR = 0x01;
+	const uint8_t MINOR = 0x02;
+	const uint8_t BUILD = 0x03;
 };
 #endif
