@@ -30,7 +30,7 @@
 
 #define SIGNATURESIZE 64
 #define KEYSIZE 32
-#define IVSIZE 8
+#define IVSIZE 12
 #define CHECKSUMSIZE 4
 #define INVALIDINDEX -1
 
