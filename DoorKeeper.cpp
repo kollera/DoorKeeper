@@ -102,7 +102,7 @@ void DoorKeeper::addChecksum(uint8_t* message, uint32_t* chksum) {
 
 boolean DoorKeeper::verifyChecksum(uint8_t* message, uint32_t chksum) {
 	DOORKEEPERDEBUG_PRINT(F("checksum: "));
-	DOORKEEPERDEBUG_HEXPRINT((uint8_t* )message, CHECKSUMSIZE);
+	DOORKEEPERDEBUG_HEXPRINT((uint8_t* )&chksum, CHECKSUMSIZE);
 	DOORKEEPERDEBUG_PRINTLN();
 
 	uint32_t chk = acrypt.calcChecksum((uint8_t *) message, DATALENGTH);
