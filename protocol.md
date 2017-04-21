@@ -73,7 +73,7 @@
 Client generates a session key pair (dh1) and sends a StartSessionRequest.
 To ensure data integrity a signature (with client private key) is generated for the session public key.
 
-Server verifies signature (with client public key) and also generates a session key pair and a IV ( or nounce).
+Server verifies signature (with client public key) and also generates a session key pair and a IV ( or nonce).
 Signature is generated for session public key and IV and a StartSessionResponse is sent to the client.
 
 Both parties generate a shared secret (dh2) and initialize a stream cipher (ChaCha20).
