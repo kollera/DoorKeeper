@@ -128,7 +128,7 @@ Both parties generate a shared secret (dh2) and initialize a stream cipher (ChaC
 
 ```
 +----------------------------------------------------------------------------------------------------------+
-|0x23|0x42|0x20|0x00|session_public_key (32 byte) | iv (nounce) (8 byte) |  signature (64 byte)   |checksum|
+|0x23|0x42|0x20|0x00|session_public_key (32 byte) | iv (nonce) (8 byte) |  signature (64 byte)    |checksum|
 +----------------------------------------------------------------------------------------------------------+
 ```
 
