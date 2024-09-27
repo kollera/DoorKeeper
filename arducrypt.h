@@ -38,16 +38,16 @@
 #ifdef ARDUCRYPTDEBUG
 #define ARDUCRYPTDEBUG_HEXPRINT(x, y) arducrypt::printHex(x, y)
 #define ARDUCRYPTDEBUG_HEXPRINTBYTE(x) arducrypt::printHex(&x, 1)
-#ifndef ARDUCRYPTDEBUG_WRITE
+#ifndef ARDUINOLOG
 #define ARDUCRYPTDEBUG_WRITE(x, y) Serial.write(x, y)
-#endif
-#ifndef ARDUCRYPTDEBUG_PRINT
 #define ARDUCRYPTDEBUG_PRINT(z) Serial.print(z)
-#endif
-#ifndef ARDUCRYPTDEBUG_PRINTLN
 #define ARDUCRYPTDEBUG_PRINTLN(z) Serial.println(z)
-#endif
 #else
+#define ARDUCRYPTDEBUG_WRITE(x, y) Log.trace(x)
+#define ARDUCRYPTDEBUG_PRINT(z) Log.trace(z)
+#define ARDUCRYPTDEBUG_PRINTLN(z) Log.traceln(z)
+#endif
+
 #define ARDUCRYPTDEBUG_HEXPRINT(x, y)
 #define ARDUCRYPTDEBUG_HEXPRINTBYTE(x)
 #define ARDUCRYPTDEBUG_WRITE(x, y)
