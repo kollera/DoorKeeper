@@ -20,7 +20,6 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-
 #include <arducrypt.h>
 #include <CRC32.h>
 #include <Curve25519.h>
@@ -40,28 +39,28 @@
  *
  */
 
-
-void generateInitVector(uint8_t* sessionIv);
-
-
+void generateInitVector(uint8_t *sessionIv);
 
 /**
  * \brief validates signature of message with given signkey
  */
-boolean arducrypt::validateSignature(arducryptsignature* signature,
-		uint8_t* message, int length, arducryptkey* key) {
+boolean arducrypt::validateSignature(arducryptsignature *signature,
+									 uint8_t *message, int length, arducryptkey *key)
+{
 	bool verified = Ed25519::verify(
-			(const unsigned char*) &signature->signaturebytes,
-			(const unsigned char*) &key->keybytes,
-			(const unsigned char*) message, length);
+		(const unsigned char *)&signature->signaturebytes,
+		(const unsigned char *)&key->keybytes,
+		(const unsigned char *)message, length);
 	return verified;
 }
 
 /**
  * \brief generates a random iv (or nounce)
  */
-void generateInitVector(uint8_t* sessionIv) {
-	for(unsigned int i = 0 ; i < IVSIZE; i++) {
+void generateInitVector(uint8_t *sessionIv)
+{
+	for (unsigned int i = 0; i < IVSIZE; i++)
+	{
 		sessionIv[i] = (uint8_t)RANDOM_REG32;
 	}
 	ARDUCRYPTDEBUG_PRINT(F("generateInitVector:"));
@@ -73,7 +72,8 @@ void generateInitVector(uint8_t* sessionIv) {
  * generates a Ed25519 key pair
  * privateKey[32] & publicKey[32]
  */
-void arducrypt::generateSigKeyPair(uint8_t* privateKey, uint8_t* publicKey) {
+void arducrypt::generateSigKeyPair(uint8_t *privateKey, uint8_t *publicKey)
+{
 	Ed25519::generatePrivateKey(privateKey);
 	Ed25519::derivePublicKey(publicKey, privateKey);
 }
@@ -81,41 +81,43 @@ void arducrypt::generateSigKeyPair(uint8_t* privateKey, uint8_t* publicKey) {
 /**
  * \brief initializes arducryptsession
  */
-boolean arducrypt::generateSession(arducryptsession* session, arducryptkey* partnerkey) {
+boolean arducrypt::generateSession(arducryptsession *session, arducryptkey *partnerkey)
+{
 	ARDUCRYPTDEBUG_PRINT(F("generateSessionKey"));
 	uint8_t privKey[KEYSIZE];
 	uint8_t secretShared[KEYSIZE];
-	memcpy(secretShared,partnerkey,KEYSIZE);
+	memcpy(secretShared, partnerkey, KEYSIZE);
 	ESP.wdtFeed();
 	Curve25519::dh1(session->publicKey, privKey);
 	ESP.wdtFeed();
 	ARDUCRYPTDEBUG_PRINT(F("sessionServerPrivKey:"));
-	ARDUCRYPTDEBUG_HEXPRINT((uint8_t* )&privKey, KEYSIZE);
+	ARDUCRYPTDEBUG_HEXPRINT((uint8_t *)&privKey, KEYSIZE);
 	ARDUCRYPTDEBUG_PRINT(F("sessionServerPubKey:"));
 	ARDUCRYPTDEBUG_HEXPRINT(
-			(uint8_t* )&session->publicKey,
-			KEYSIZE);
+		(uint8_t *)&session->publicKey,
+		KEYSIZE);
 	ARDUCRYPTDEBUG_PRINT(F("partnerKey:"));
 	ARDUCRYPTDEBUG_HEXPRINT(
-			(uint8_t* )&partnerkey->keybytes,
-			KEYSIZE);
-	if (Curve25519::dh2(secretShared, privKey) == true) {
+		(uint8_t *)&partnerkey->keybytes,
+		KEYSIZE);
+	if (Curve25519::dh2(secretShared, privKey) == true)
+	{
 		ESP.wdtFeed();
 		ARDUCRYPTDEBUG_PRINT(F("secret:"));
-		ARDUCRYPTDEBUG_HEXPRINT((uint8_t* )&secretShared, KEYSIZE);
+		ARDUCRYPTDEBUG_HEXPRINT((uint8_t *)&secretShared, KEYSIZE);
 		// generate IV
-		generateInitVector((uint8_t*)&session->iv);
+		generateInitVector((uint8_t *)&session->iv);
 		ESP.wdtFeed();
 		// copy to buffer out
 		ARDUCRYPTDEBUG_PRINT(F("generateIV:"));
-		ARDUCRYPTDEBUG_HEXPRINT((uint8_t* )&session->iv, IVSIZE);
+		ARDUCRYPTDEBUG_HEXPRINT((uint8_t *)&session->iv, IVSIZE);
 		session->encrypt.setKey(secretShared, KEYSIZE);
 		session->encrypt.setIV(session->iv, IVSIZE);
 		session->decrypt.setKey(secretShared, KEYSIZE);
 		session->decrypt.setIV(session->iv, IVSIZE);
 		ESP.wdtFeed();
 		// delete
-		memset(secretShared ,0,KEYSIZE);
+		memset(secretShared, 0, KEYSIZE);
 		return true;
 	}
 	return false;
@@ -124,53 +126,56 @@ boolean arducrypt::generateSession(arducryptsession* session, arducryptkey* part
 /**
  * \brief signs message with given sign key
  */
-void arducrypt::sign(arducryptkeypair* signKey, uint8_t* message, arducryptsignature* signature,int length) {
+void arducrypt::sign(arducryptkeypair *signKey, uint8_t *message, arducryptsignature *signature, int length)
+{
 
-		Ed25519::sign(signature->signaturebytes,
-				signKey->privateKey.keybytes, signKey->publicKey.keybytes,
-				message,
-				length);
-		ARDUCRYPTDEBUG_PRINT(F("signature:"));
-		ARDUCRYPTDEBUG_HEXPRINT(
-				(uint8_t* )&signature->signaturebytes,
-				SIGNATURESIZE);
+	Ed25519::sign(signature->signaturebytes,
+				  signKey->privateKey.keybytes, signKey->publicKey.keybytes,
+				  message,
+				  length);
+	ARDUCRYPTDEBUG_PRINT(F("signature:"));
+	ARDUCRYPTDEBUG_HEXPRINT(
+		(uint8_t *)&signature->signaturebytes,
+		SIGNATURESIZE);
 }
 
 /**
  * \brief decrypt encryptedmessage with given arducryptsession
  * output: plainmessage
  */
-void arducrypt::decrypt(uint8_t* plainmessage,
-		uint8_t* encryptedmessage, arducryptsession* session) {
+void arducrypt::decrypt(uint8_t *plainmessage,
+						uint8_t *encryptedmessage, arducryptsession *session)
+{
 	ARDUCRYPTDEBUG_PRINT(F("decrypt_data: "));
-	ARDUCRYPTDEBUG_HEXPRINT((uint8_t* )encryptedmessage,  messagesize);
+	ARDUCRYPTDEBUG_HEXPRINT((uint8_t *)encryptedmessage, messagesize);
 
-		session->decrypt.decrypt((uint8_t*) plainmessage,
-				(const uint8_t*) encryptedmessage,
-				(size_t)  messagesize);
-		ARDUCRYPTDEBUG_PRINT(F("decrypted: "));
-		ARDUCRYPTDEBUG_HEXPRINT((uint8_t* )plainmessage,  messagesize);
+	session->decrypt.decrypt((uint8_t *)plainmessage,
+							 (const uint8_t *)encryptedmessage,
+							 (size_t)messagesize);
+	ARDUCRYPTDEBUG_PRINT(F("decrypted: "));
+	ARDUCRYPTDEBUG_HEXPRINT((uint8_t *)plainmessage, messagesize);
 }
 
 /**
  * \brief encrypt plainmessage with given arducryptsession
  */
-void arducrypt::encrypt(uint8_t* plainmessage,
-		uint8_t* encryptedmessage, arducryptsession* session) {
+void arducrypt::encrypt(uint8_t *plainmessage,
+						uint8_t *encryptedmessage, arducryptsession *session)
+{
 	ARDUCRYPTDEBUG_PRINT(F("encrypt_data: "));
-	ARDUCRYPTDEBUG_HEXPRINT((uint8_t* )plainmessage, messagesize);
+	ARDUCRYPTDEBUG_HEXPRINT((uint8_t *)plainmessage, messagesize);
 
-		session->encrypt.encrypt((uint8_t*) encryptedmessage,
-				(const uint8_t*) plainmessage, (size_t) messagesize);
-		ARDUCRYPTDEBUG_PRINT(F("encrypted: "));
-		ARDUCRYPTDEBUG_HEXPRINT((uint8_t* )encryptedmessage,  messagesize);
-
+	session->encrypt.encrypt((uint8_t *)encryptedmessage,
+							 (const uint8_t *)plainmessage, (size_t)messagesize);
+	ARDUCRYPTDEBUG_PRINT(F("encrypted: "));
+	ARDUCRYPTDEBUG_HEXPRINT((uint8_t *)encryptedmessage, messagesize);
 }
 
 /**
  * \brief calculate CRC32 checksum for given message
  */
-uint32_t arducrypt::calcChecksum(uint8_t* message, int length) {
+uint32_t arducrypt::calcChecksum(uint8_t *message, int length)
+{
 	uint32_t chksum = CRC32::calculate(message, length);
 	return chksum;
 }
@@ -179,11 +184,12 @@ uint32_t arducrypt::calcChecksum(uint8_t* message, int length) {
  * \brief helper method: print hexstring
  */
 void arducrypt::printHex(uint8_t *data, int length)
-		{
+{
 	char hexstring[length * 2 + 1];
 	byte left;
 	byte right;
-	for (int i = 0; i < length; i++) {
+	for (int i = 0; i < length; i++)
+	{
 		left = (data[i] >> 4) & 0x0f;
 		right = data[i] & 0x0f;
 		hexstring[i * 2] = left + 48;
@@ -194,6 +200,5 @@ void arducrypt::printHex(uint8_t *data, int length)
 			hexstring[i * 2 + 1] += 39;
 	}
 	hexstring[length * 2] = '\0';
-	Serial.println(hexstring);
+	ARDUCRYPTDEBUG_PRINTLN(hexstring);
 }
-

@@ -20,7 +20,6 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-
 #ifndef ARDUCRYPT_H_
 #define ARDUCRYPT_H_
 
@@ -37,69 +36,79 @@
 #define ARDUCRYPTDEBUG 1
 
 #ifdef ARDUCRYPTDEBUG
-#define ARDUCRYPTDEBUG_HEXPRINT(x,y) arducrypt::printHex(x,y)
-#define ARDUCRYPTDEBUG_HEXPRINTBYTE(x) arducrypt::printHex(&x,1)
-#define ARDUCRYPTDEBUG_WRITE(x,y)  Serial.write (x,y)
-#define ARDUCRYPTDEBUG_PRINT(z)  Serial.print (z)
-#define ARDUCRYPTDEBUG_PRINTLN(z)  Serial.println (z)
+#define ARDUCRYPTDEBUG_HEXPRINT(x, y) arducrypt::printHex(x, y)
+#define ARDUCRYPTDEBUG_HEXPRINTBYTE(x) arducrypt::printHex(&x, 1)
+#ifndef ARDUCRYPTDEBUG_WRITE
+#define ARDUCRYPTDEBUG_WRITE(x, y) Serial.write(x, y)
+#endif
+#ifndef ARDUCRYPTDEBUG_PRINT
+#define ARDUCRYPTDEBUG_PRINT(z) Serial.print(z)
+#endif
+#ifndef ARDUCRYPTDEBUG_PRINTLN
+#define ARDUCRYPTDEBUG_PRINTLN(z) Serial.println(z)
+#endif
 #else
-#define ARDUCRYPTDEBUG_HEXPRINT(x,y)
+#define ARDUCRYPTDEBUG_HEXPRINT(x, y)
 #define ARDUCRYPTDEBUG_HEXPRINTBYTE(x)
-#define ARDUCRYPTDEBUG_WRITE(x,y)
+#define ARDUCRYPTDEBUG_WRITE(x, y)
 #define ARDUCRYPTDEBUG_PRINT(x)
 #define ARDUCRYPTDEBUG_PRINTLN(z)
 #endif
 
 #define ARDUCRYPTMESSAGESIZE 128
 
-struct arducryptsignature {
+struct arducryptsignature
+{
 	uint8_t signaturebytes[SIGNATURESIZE];
 };
 
-struct arducryptkey {
+struct arducryptkey
+{
 	byte keybytes[KEYSIZE];
 };
 
-struct arducryptkeypair {
+struct arducryptkeypair
+{
 	arducryptkey publicKey;
 	arducryptkey privateKey;
 };
 
-struct arducryptsession {
+struct arducryptsession
+{
 	uint8_t publicKey[KEYSIZE];
 	uint8_t iv[IVSIZE];
 	ChaCha encrypt;
 	ChaCha decrypt;
 };
 
-class arducrypt {
+class arducrypt
+{
 
 public:
 	static void printHex(uint8_t *data, int length);
 
 public:
-
-
-	arducrypt(int framesize) {
+	arducrypt(int framesize)
+	{
 		messagesize = framesize;
 	}
 
-	boolean generateSession(arducryptsession* session,
-			arducryptkey* partnerkey);
+	boolean generateSession(arducryptsession *session,
+							arducryptkey *partnerkey);
 
-	void sign(arducryptkeypair* signKey, uint8_t* message,
-			arducryptsignature* signature, int length);
-	boolean validateSignature(arducryptsignature* signature, uint8_t* message,
-			int length, arducryptkey* key);
+	void sign(arducryptkeypair *signKey, uint8_t *message,
+			  arducryptsignature *signature, int length);
+	boolean validateSignature(arducryptsignature *signature, uint8_t *message,
+							  int length, arducryptkey *key);
 
-	void decrypt(uint8_t* plainmessage, uint8_t* encryptedmessage,
-			arducryptsession* session);
-	void encrypt(uint8_t* plainmessage, uint8_t* encryptedmessage,
-			arducryptsession* session);
+	void decrypt(uint8_t *plainmessage, uint8_t *encryptedmessage,
+				 arducryptsession *session);
+	void encrypt(uint8_t *plainmessage, uint8_t *encryptedmessage,
+				 arducryptsession *session);
 
-	uint32_t calcChecksum(uint8_t* message, int len);
+	uint32_t calcChecksum(uint8_t *message, int len);
 
-	void static generateSigKeyPair(uint8_t* privateKey, uint8_t* publicKey);
+	void static generateSigKeyPair(uint8_t *privateKey, uint8_t *publicKey);
 
 private:
 	int messagesize;
